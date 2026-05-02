@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AML PROJECT - PB — Movie Recommender</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:      #080810;
+    --bg2:     #0f0f1a;
+    --bg3:     #16162a;
+    --accent:  #f5c518;
+    --accent2: #ff6b35;
+    --text:    #e8e8f0;
+    --muted:   #7070a0;
+    --border:  #ffffff18;
+    --card:    #12121f;
+    --glow:    rgba(245,197,24,0.15);
+  }
+ 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+ 
+  /* ── Animated background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(245,197,24,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(255,107,53,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+ 
+  /* Film grain overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+ 
+  /* ── Header ── */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 48px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+ 
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-shadow: 0 0 30px var(--glow);
+  }
+ 
+  .logo span { color: var(--text); }
+ 
+  .tagline {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
+ 
+  /* ── Hero search ── */
+  .hero {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 64px 24px 48px;
+  }
+ 
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 8vw, 6rem);
+    line-height: 1;
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+ 
+  .hero-sub {
+    color: var(--muted);
+    font-size: 1rem;
+    letter-spacing: 1px;
+    margin-bottom: 40px;
+  }
+ 
+  /* ── Search bar ── */
+  .search-wrap {
+    display: flex;
+    align-items: center;
+    max-width: 680px;
+    margin: 0 auto 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 60px;
+    padding: 6px 6px 6px 28px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+ 
+  .search-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow), 0 8px 32px rgba(0,0,0,0.4);
+  }
+ 
+  .search-wrap input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    padding: 10px 0;
+  }
+ 
+  .search-wrap input::placeholder { color: var(--muted); }
+ 
+  .search-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    white-space: nowrap;
+  }
+ 
+  .search-btn:hover { background: #ffd740; transform: scale(1.04); }
+  .search-btn:active { transform: scale(0.97); }
+ 
+  /* ── Filter tabs ── */
+  .filters {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+ 
+  .filter-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 50px;
+    padding: 7px 18px;
+    font-size: 0.82rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+ 
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+ 
+  /* ── Section titles ── */
+  .section {
+    position: relative;
+    z-index: 10;
+    max-width: 1280px;
+    margin: 0 auto 56px;
+    padding: 0 32px;
+  }
+ 
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+ 
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+ 
+  .section-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: rgba(245,197,24,0.12);
+    border: 1px solid rgba(245,197,24,0.3);
+    border-radius: 4px;
+    padding: 2px 8px;
+    letter-spacing: 1px;
+  }
+ 
+  /* ── Movie grid ── */
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+ 
+  /* ── Movie card ── */
+  .movie-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    animation: fadeUp 0.5s ease both;
+  }
+ 
+  .movie-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    border-color: rgba(245,197,24,0.4);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 20px rgba(245,197,24,0.08);
+  }
+ 
+  .card-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+ 
+  .card-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+  }
+ 
+  .movie-card:hover .card-poster img { transform: scale(1.06); }
+ 
+  .card-poster .no-img {
+    font-size: 2.5rem;
+    opacity: 0.3;
+  }
+ 
+  .card-rating {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(245,197,24,0.4);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+ 
+  .card-lang {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,107,53,0.85);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+ 
+  .card-body {
+    padding: 14px;
+  }
+ 
+  .card-title {
+    font-weight: 500;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+ 
+  .card-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+ 
+  .genre-tag {
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    letter-spacing: 0.3px;
+  }
+ 
+  .card-year {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+ 
+  /* ── Loading ── */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+ 
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+ 
+  /* ── Error / empty ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--muted);
+  }
+ 
+  .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
+  .empty-state p { font-size: 0.95rem; }
+ 
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+ 
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+ 
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    max-width: 640px;
+    width: 100%;
+    overflow: hidden;
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.25s;
+  }
+ 
+  .modal-overlay.open .modal {
+    transform: translateY(0) scale(1);
+  }
+ 
+  .modal-header {
+    display: flex;
+    gap: 20px;
+    padding: 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+ 
+  .modal-poster {
+    width: 100px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg3);
+    aspect-ratio: 2/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+ 
+  .modal-poster img { width: 100%; height: 100%; object-fit: cover; }
+ 
+  .modal-info { flex: 1; }
+ 
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+ 
+  .modal-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+ 
+  .modal-meta .rating { color: var(--accent); font-weight: 500; }
+ 
+  .modal-genres { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+ 
+  .modal-genre-tag {
+    background: rgba(245,197,24,0.1);
+    border: 1px solid rgba(245,197,24,0.25);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+  }
+ 
+  .modal-overview {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+ 
+  .modal-body { padding: 20px 24px 24px; }
+ 
+  .similar-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    color: var(--muted);
+  }
+ 
+  .similar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+ 
+  .similar-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+ 
+  .similar-card:hover {
+    border-color: rgba(245,197,24,0.4);
+    transform: translateY(-2px);
+  }
+ 
+  .similar-poster {
+    aspect-ratio: 2/3;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+ 
+  .similar-poster img { width: 100%; height: 100%; object-fit: cover; }
+ 
+  .similar-name {
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+ 
+  .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+  }
+ 
+  .close-btn:hover { color: var(--text); border-color: var(--text); }
+ 
+  /* ── Footer ── */
+  footer {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+  }
+ 
+  footer span { color: var(--accent); }
+ 
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+ 
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+ 
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.10s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.20s; }
+  .stagger-5 { animation-delay: 0.25s; }
+ 
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+ 
+  @media (max-width: 600px) {
+    header { padding: 18px 20px; }
+    .hero { padding: 40px 16px 32px; }
+    .section { padding: 0 16px; }
+    .movie-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  }
+</style>
+</head>
+<body>
+ 
+<!-- Header -->
+<header>
+  <div class="logo">Cine<span>AI</span></div>
+  <div class="tagline">Powered by TMDB &nbsp;·&nbsp; ML Recommender</div>
+</header>
+ 
+<!-- Hero Search -->
+<section class="hero">
+  <h1 class="hero-title">Find Your Next<br>Obsession</h1>
+  <p class="hero-sub">Hollywood · Bollywood · Latest 2024 Releases</p>
+ 
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Search Pathaan, Inception, KGF, Avatar…" autocomplete="off"/>
+    <button class="search-btn" onclick="doSearch()">🔍 Search</button>
+  </div>
+ 
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('en', this)">🎬 Hollywood</button>
+    <button class="filter-btn" onclick="setFilter('hi', this)">🎭 Bollywood</button>
+    <button class="filter-btn" onclick="setGenre('Action', this)">💥 Action</button>
+    <button class="filter-btn" onclick="setGenre('Comedy', this)">😂 Comedy</button>
+    <button class="filter-btn" onclick="setGenre('Romance', this)">❤️ Romance</button>
+    <button class="filter-btn" onclick="setGenre('Horror', this)">👻 Horror</button>
+    <button class="filter-btn" onclick="setGenre('Thriller', this)">🔪 Thriller</button>
+    <button class="filter-btn" onclick="setGenre('Drama', this)">🎭 Drama</button>
+    <button class="filter-btn" onclick="setGenre('Animation', this)">✨ Animation</button>
+  </div>
+</section>
+ 
+<!-- Results / Default sections -->
+<div id="mainContent">
+ 
+  <!-- Popular Hollywood -->
+  <section class="section" id="hollywoodSection">
+    <div class="section-header">
+      <span class="section-title">🏆 Top Hollywood</span>
+      <span class="section-badge">POPULAR</span>
+    </div>
+    <div class="movie-grid" id="hollywoodGrid">
+      <div class="loading"><div class="spinner"></div> Loading movies…</div>
+    </div>
+  </section>
+ 
+  <!-- Top Bollywood -->
+  <section class="section" id="bollywoodSection">
+    <div class="section-header">
+      <span class="section-title">🎭 Top Bollywood</span>
+      <span class="section-badge">HINDI</span>
+    </div>
+    <div class="movie-grid" id="bollywoodGrid">
+      <div class="loading"><div class="spinner"></div> Loading movies…</div>
+    </div>
+  </section>
+ 
+</div>
+ 
+<!-- Search Results Section (hidden by default) -->
+<div id="searchResults" style="display:none">
+  <section class="section">
+    <div class="section-header">
+      <span class="section-title" id="resultsTitle">Search Results</span>
+      <span class="section-badge" id="resultsCount">0 FOUND</span>
+    </div>
+    <div class="movie-grid" id="resultsGrid"></div>
+  </section>
+ 
+  <section class="section" id="similarSection" style="display:none">
+    <div class="section-header">
+      <span class="section-title">🔮 Similar Movies</span>
+      <span class="section-badge">AI PICKS</span>
+    </div>
+    <div class="movie-grid" id="similarGrid"></div>
+  </section>
+</div>
+ 
+<!-- Movie Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" style="position:relative">
+    <button class="close-btn" onclick="closeModalBtn()">✕</button>
+    <div class="modal-header">
+      <div class="modal-poster">
+        <img id="modalPoster" src="" alt="" onerror="this.style.display='none'"/>
+      </div>
+      <div class="modal-info">
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-meta">
+          <span class="rating" id="modalRating"></span>
+          <span id="modalYear"></span>
+          <span id="modalLang"></span>
+        </div>
+        <div class="modal-genres" id="modalGenres"></div>
+        <div class="modal-overview" id="modalOverview"></div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="similar-title">🔮 SIMILAR MOVIES</div>
+      <div class="similar-grid" id="modalSimilar">
+        <div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<footer>
+  Built with <span>♥</span> · TMDB API · Machine Learning · Python
+</footer>
+ 
+<script>
+const API_KEY = '988271023420489e1f239628ed9eff81';
+const BASE    = 'https://api.themoviedb.org/3';
+const IMG     = 'https://image.tmdb.org/t/p/w500';
+const SMALL   = 'https://image.tmdb.org/t/p/w200';
+ 
+let genreMap = {};
+let currentLangFilter = 'all';
+let currentGenreFilter = '';
+ 
+// ── Init ──────────────────────────────────────────────
+async function init() {
+  await loadGenres();
+  loadSection('hollywoodGrid', await fetchPopular('en', 1));
+  loadSection('bollywoodGrid', await fetchBollywood(1));
+}
+ 
+async function loadGenres() {
+  try {
+    const r = await fetch(`${BASE}/genre/movie/list?api_key=${API_KEY}`);
+    const d = await r.json();
+    d.genres.forEach(g => genreMap[g.id] = g.name);
+  } catch(e) {}
+}
+ 
+// ── Fetch functions ───────────────────────────────────
+async function fetchPopular(lang='en', page=1) {
+  const r = await fetch(`${BASE}/movie/popular?api_key=${API_KEY}&language=en-US&page=${page}`);
+  const d = await r.json();
+  return (d.results || []).filter(m => m.original_language === lang);
+}
+ 
+async function fetchBollywood(page=1) {
+  const r = await fetch(`${BASE}/discover/movie?api_key=${API_KEY}&with_original_language=hi&sort_by=popularity.desc&page=${page}&vote_count.gte=10`);
+  const d = await r.json();
+  return d.results || [];
+}
+ 
+async function searchTMDB(query) {
+  const r = await fetch(`${BASE}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=en-US`);
+  const d = await r.json();
+  return d.results || [];
+}
+ 
+async function getSimilar(movieId) {
+  const r = await fetch(`${BASE}/movie/${movieId}/similar?api_key=${API_KEY}&language=en-US`);
+  const d = await r.json();
+  return (d.results || []).slice(0, 6);
+}
+ 
+async function getMovieDetail(movieId) {
+  const r = await fetch(`${BASE}/movie/${movieId}?api_key=${API_KEY}&language=en-US`);
+  return await r.json();
+}
+ 
+// ── Render ────────────────────────────────────────────
+function movieCardHTML(m, index=0) {
+  const poster  = m.poster_path ? `<img src="${IMG}${m.poster_path}" alt="${m.title}" loading="lazy"/>` : `<div class="no-img">🎬</div>`;
+  const rating  = m.vote_average ? m.vote_average.toFixed(1) : 'N/A';
+  const year    = m.release_date ? m.release_date.slice(0,4) : '';
+  const lang    = m.original_language === 'hi' ? 'HINDI' : (m.original_language === 'en' ? '' : m.original_language?.toUpperCase());
+  const genres  = (m.genre_ids || []).slice(0,2).map(id => genreMap[id] || '').filter(Boolean);
+  const stagger = `stagger-${(index % 5) + 1}`;
+ 
+  return `
+  <div class="movie-card ${stagger}" onclick="openModal(${m.id})">
+    <div class="card-poster">
+      ${poster}
+      <div class="card-rating">⭐ ${rating}</div>
+      ${lang ? `<div class="card-lang">${lang}</div>` : ''}
+    </div>
+    <div class="card-body">
+      <div class="card-title">${m.title}</div>
+      <div class="card-genres">
+        ${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}
+      </div>
+      <div class="card-year">${year}</div>
+    </div>
+  </div>`;
+}
+ 
+function loadSection(gridId, movies) {
+  const grid = document.getElementById(gridId);
+  if (!movies || movies.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><div class="icon">🎬</div><p>No movies found</p></div>`;
+    return;
+  }
+  grid.innerHTML = movies.map((m, i) => movieCardHTML(m, i)).join('');
+}
+ 
+// ── Search ────────────────────────────────────────────
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) { resetView(); return; }
+ 
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('searchResults').style.display = 'block';
+  document.getElementById('similarSection').style.display = 'none';
+ 
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Searching TMDB…</div>`;
+ 
+  try {
+    let results = await searchTMDB(q);
+ 
+    if (currentLangFilter !== 'all') {
+      results = results.filter(m => m.original_language === currentLangFilter);
+    }
+    if (currentGenreFilter) {
+      results = results.filter(m =>
+        (m.genre_ids || []).some(id => (genreMap[id]||'').toLowerCase().includes(currentGenreFilter.toLowerCase()))
+      );
+    }
+ 
+    document.getElementById('resultsTitle').textContent = `Results for "${q}"`;
+    document.getElementById('resultsCount').textContent = `${results.length} FOUND`;
+    loadSection('resultsGrid', results);
+ 
+    // Auto-load similar for first result
+    if (results.length > 0) {
+      document.getElementById('similarSection').style.display = 'block';
+      const sim = await getSimilar(results[0].id);
+      loadSection('similarGrid', sim);
+    }
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>Error fetching results. Check your internet.</p></div>`;
+  }
+}
+ 
+// ── Filters ───────────────────────────────────────────
+function setFilter(lang, btn) {
+  currentLangFilter  = lang;
+  currentGenreFilter = '';
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+ 
+  if (lang === 'all') { resetView(); return; }
+  if (lang === 'hi')  { filterBollywood(); return; }
+  filterHollywood();
+}
+ 
+function setGenre(genre, btn) {
+  currentGenreFilter = genre;
+  currentLangFilter  = 'all';
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterByGenre(genre);
+}
+ 
+async function filterHollywood() {
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('bollywoodSection').style.display = 'none';
+  document.getElementById('hollywoodSection').style.display = 'block';
+  document.querySelector('#hollywoodSection .section-title').textContent = '🎬 Hollywood Movies';
+}
+ 
+async function filterBollywood() {
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('hollywoodSection').style.display = 'none';
+  document.getElementById('bollywoodSection').style.display = 'block';
+  document.querySelector('#bollywoodSection .section-title').textContent = '🎭 Bollywood Movies';
+}
+ 
+async function filterByGenre(genre) {
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('searchResults').style.display = 'block';
+  document.getElementById('similarSection').style.display = 'none';
+ 
+  const grid = document.getElementById('resultsGrid');
+  document.getElementById('resultsTitle').textContent = `${genre} Movies`;
+  grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>`;
+ 
+  try {
+    const genreId = Object.entries(genreMap).find(([id, name]) => name === genre)?.[0];
+    if (!genreId) { grid.innerHTML = '<div class="empty-state"><p>Genre not found</p></div>'; return; }
+ 
+    const r = await fetch(`${BASE}/discover/movie?api_key=${API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=1`);
+    const d = await r.json();
+    const results = d.results || [];
+    document.getElementById('resultsCount').textContent = `${results.length} FOUND`;
+    loadSection('resultsGrid', results);
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state"><p>Error loading genre</p></div>`;
+  }
+}
+ 
+function resetView() {
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('hollywoodSection').style.display = 'block';
+  document.getElementById('bollywoodSection').style.display = 'block';
+  document.getElementById('searchInput').value = '';
+}
+ 
+// ── Modal ─────────────────────────────────────────────
+async function openModal(movieId) {
+  const overlay = document.getElementById('modalOverlay');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+ 
+  document.getElementById('modalTitle').textContent    = 'Loading…';
+  document.getElementById('modalOverview').textContent = '';
+  document.getElementById('modalGenres').innerHTML     = '';
+  document.getElementById('modalSimilar').innerHTML    = '<div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>';
+ 
+  try {
+    const [movie, similar] = await Promise.all([getMovieDetail(movieId), getSimilar(movieId)]);
+ 
+    const poster = document.getElementById('modalPoster');
+    if (movie.poster_path) {
+      poster.src   = `${IMG}${movie.poster_path}`;
+      poster.style.display = 'block';
+    } else {
+      poster.style.display = 'none';
+    }
+ 
+    document.getElementById('modalTitle').textContent   = movie.title;
+    document.getElementById('modalRating').textContent  = `⭐ ${movie.vote_average?.toFixed(1)} / 10`;
+    document.getElementById('modalYear').textContent    = movie.release_date?.slice(0,4) || '';
+    document.getElementById('modalLang').textContent    = movie.original_language === 'hi' ? '🇮🇳 Hindi' : '🇺🇸 English';
+    document.getElementById('modalOverview').textContent = movie.overview || 'No description available.';
+ 
+    const genresEl = document.getElementById('modalGenres');
+    genresEl.innerHTML = (movie.genres || []).map(g =>
+      `<span class="modal-genre-tag">${g.name}</span>`
+    ).join('');
+ 
+    // Similar movies
+    const simGrid = document.getElementById('modalSimilar');
+    if (similar.length === 0) {
+      simGrid.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">No similar movies found</p>';
+    } else {
+      simGrid.innerHTML = similar.map(m => `
+        <div class="similar-card" onclick="openModal(${m.id})">
+          <div class="similar-poster">
+            ${m.poster_path ? `<img src="${SMALL}${m.poster_path}" alt="${m.title}" loading="lazy"/>` : '🎬'}
+          </div>
+          <div class="similar-name">${m.title}</div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {
+    document.getElementById('modalTitle').textContent = 'Error loading movie';
+  }
+}
+ 
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalBtn();
+}
+ 
+function closeModalBtn() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+ 
+// Enter key search
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+ 
+// ── Boot ──────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
